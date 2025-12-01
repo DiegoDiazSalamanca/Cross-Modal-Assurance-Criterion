@@ -1,4 +1,4 @@
-function [MAC, Fig1, Fig2] = CMAC(phi1, phi2, Colmap, phi1Name, phi2Name, FontSizeVal, NumFig, ShowText)
+function [MAC, Fig3D, Fig2D] = CMAC(phi1, phi2, Colmap, phi1Name, phi2Name, FontSizeVal, NumFig, ShowText)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% CMAC function %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -19,8 +19,8 @@ function [MAC, Fig1, Fig2] = CMAC(phi1, phi2, Colmap, phi1Name, phi2Name, FontSi
 %
 % OUTPUTS:
 % MAC = Modal Assurance Criterion matrix
-% Fig1 = Handle to 3D MAC figure
-% Fig2 = Handle to 2D MAC figure (empty if NumFig = 1)
+% Fig3D = Handle to 3D MAC figure
+% Fig2D = Handle to 2D MAC figure (empty if NumFig = 1)
 %
 % EXAMPLE:
 % phi1 = rand(10,5);
@@ -37,96 +37,116 @@ function [MAC, Fig1, Fig2] = CMAC(phi1, phi2, Colmap, phi1Name, phi2Name, FontSi
 %%%%%%  Copyright (c) 2025 Diego Díaz Salamanca. All rights reserved %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Preliminar checks
-if isempty(Colmap)
+%% PRELIMINARY CHECKS
+
+if ~exist('Colmap','var') || isempty(Colmap)
     Colmap = 'default';
 end
 
-if isempty(phi1Name)
-    phi1Name = 'Modes 1';
+if ~exist('phi1Name','var') || isempty(phi1Name)
+    phi1Name = 'Modes set 1';
 end
 
-if isempty(phi2Name)
-    phi2Name = 'Modes 2';
+if ~exist('phi2Name','var') || isempty(phi2Name)
+    phi2Name = 'Modes set 2';
 end
 
-if isempty(FontSizeVal)
+if ~exist('FontSizeVal','var') || isempty(FontSizeVal)
     FontSizeVal = 12;
 end
 
-if isempty(NumFig) || ~ismember(NumFig,[1,2])
-    warning('NumFig should be 1 or 2. Using 1 by default.');
+if ~exist('NumFig','var') || isempty(NumFig) || ~ismember(NumFig,[1,2])
+    warning('NumFig should be 1 or 2. Using 1  by default.');
     NumFig = 1;
-    Fig2 = [];
 end
 
-if isempty(ShowText) || ~ismember(lower(ShowText), {'yes','no'})
-    warning('ShowText should be ''yes'' or ''no''. Using ''no'' by default.');
+if ~exist('ShowText','var') || isempty(ShowText) || ~ismember(lower(ShowText), {'yes','no'})
+    warning('ShowText should be "yes" or "no". Using "no" by default.');
     ShowText = 'no';
 end
 
-% Evaluation of the modes matrix shapes
-[~, Numphi1] = size(phi1);
-[~, Numphi2] = size(phi2);
+%% MAIN COMPUTATIONS
 
-% Preallocation of the MAC matrix
-MAC = zeros(Numphi1, Numphi2);
-
-% Compution of the MAC matrix
-for i = 1:Numphi1
-    for j = 1:Numphi2
-        MAC(i,j) = (abs(phi1(:,i)'*phi2(:,j)))^2/((phi1(:,i)'*phi1(:,i))*(phi2(:,j)'*phi2(:,j)));
-    end
-end
+% Computation of the MAC matrix
+[MAC] = ModalAssuranceCriterion(phi1, phi2);
 
 % 3D representation of the MAC
-Fig1 = figure;
-b = bar3(MAC);
-colormap(Colmap);
-for k = 1:length(b)
-    zdata = b(k).ZData;
-    b(k).CData = zdata;
-    b(k).FaceColor = 'interp';
-end
-if strcmpi(ShowText,'yes')
-    textStrings = cellstr(num2str(MAC(:), '%0.2f'));
-    [x, y] = meshgrid(1:size(MAC,2), 1:size(MAC,1));
-    text(x(:), y(:), 1.025*MAC(:), textStrings, ...
-        'HorizontalAlignment', 'center', 'FontSize', 10, 'Interpreter','latex');
-end
-box on;
-xlabel(phi2Name,'interpreter','latex');
-ylabel(phi1Name,'interpreter','latex');
-zlabel('MAC','interpreter','latex')
-set(gca, 'TickLabelInterpreter', 'latex', 'FontSize', FontSizeVal);
-axis tight;
-view(3);
-cb = colorbar;         
-cb.Label.Interpreter = 'latex';              
-cb.Label.FontSize = 12;    
-cb.TickLabelInterpreter = 'latex';
+Fig3D = figure3D(MAC, Colmap, FontSizeVal, phi1Name, phi2Name);
 
 % 2D representation of the MAC
 if NumFig == 2
-    Fig2 = figure;     
-    imagesc(MAC);     
-    colormap(Colmap);
-    axis equal tight;
-    xlabel(phi2Name,'interpreter','latex');
-    ylabel(phi1Name,'interpreter','latex');
-    set(gca, 'TickLabelInterpreter', 'latex','FontSize',FontSizeVal);
-    grid on;
+    Fig2D = figure2D(MAC, Colmap, FontSizeVal, phi1Name, phi2Name);
+else
+    Fig2D = [];
+end
+
+%% LOCAL FUNCTIONS DEFINITION
+
+% Modal assurance criterion function
+function [MAC] = ModalAssuranceCriterion(modes1, modes2)
+
+    % Evaluation of the modes matrix dimensions
+    [~, Numphi1] = size(modes1);
+    [~, Numphi2] = size(modes2);
+
+    % Preallocation of the MAC matrix
+    MAC = zeros(Numphi1, Numphi2);
+
+    % MAC computation
+    for i = 1:Numphi1
+        for j = 1:Numphi2
+            MAC(i,j) = (abs(modes1(:,i)'*modes2(:,j)))^2/((modes1(:,i)'*modes1(:,i))*(modes2(:,j)'*modes2(:,j)));
+        end
+    end
+
+end
+
+% 3D representation function
+function [Figure3D] = figure3D(data, ColorMapName, FontSize, XLabelName, YLabelName)
+
+    Figure3D = figure;
+    b = bar3(data);
+    colormap(ColorMapName);
+    for k = 1:length(b)
+        zdata = b(k).ZData;
+        b(k).CData = zdata;
+        b(k).FaceColor = 'interp';
+    end
+
+    if strcmpi(ShowText,'yes')
+        textStrings = cellstr(num2str(data(:), '%0.2f'));
+        [x, y] = meshgrid(1:size(data,2), 1:size(data,1));
+        text(x(:), y(:), 1.025*data(:), textStrings, ...
+            'HorizontalAlignment', 'center', 'FontSize', 10, 'Interpreter', 'latex');
+    end
+    box on;
+    title("Modal Assurance Criterion",'interpreter','latex');
+    xlabel(XLabelName,'interpreter','latex');
+    ylabel(YLabelName,'interpreter','latex');
+    zlabel('MAC','interpreter','latex')
+    set(gca, 'TickLabelInterpreter', 'latex', 'FontSize', FontSize);
+    axis tight;
+    view(3);
     cb = colorbar;         
     cb.Label.Interpreter = 'latex';              
-    cb.Label.FontSize = 12;    
+    cb.Label.FontSize = FontSize;    
     cb.TickLabelInterpreter = 'latex';
-    if strcmpi(ShowText,'yes')
-        textStrings = cellstr(num2str(MAC(:), '%0.2f'));
-        [x, y] = meshgrid(1:size(MAC,2), 1:size(MAC,1));
-        text(x(:), y(:), zeros(size(MAC(:))), textStrings, ...
-            'HorizontalAlignment', 'center', 'FontSize', 10, 'Interpreter','latex');
-    end
-else
+    clim([0 1]);
 end
+
+% 2D representation function
+function [Figure2D] = figure2D(data, ColorMapName, FontSize, XLabelName, YLabelName)
+    Figure2D = figure;
+    h = heatmap(data);   
+    h.Interpreter = 'latex';
+    h.FontSize = FontSize;
+    colormap(ColorMapName);
+    h.ColorLimits = [0 1];  
+    xlabel(XLabelName);
+    ylabel(YLabelName);
+    title("Modal Assurance Criterion");
 end
+
+end
+
 
